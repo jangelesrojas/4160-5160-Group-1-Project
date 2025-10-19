@@ -1,0 +1,145 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.region
+}
+
+variable "region" {
+  type    = string
+  default = "us-east-1"
+}
+
+variable "project_prefix" {
+  type    = string
+  default = "m2-seed"
+}
+
+# Public S3 bucket
+resource "aws_s3_bucket" "public_bucket" {
+  bucket = "${var.project_prefix}-public-bucket"
+}
+
+resource "aws_s3_bucket_public_access_block" "public_block" {
+  bucket                  = aws_s3_bucket.public_bucket.id
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_ownership_controls" "own" {
+  bucket = aws_s3_bucket.public_bucket.id
+  rule { object_ownership = "BucketOwnerPreferred" }
+}
+
+resource "aws_s3_bucket_acl" "acl" {
+  depends_on = [
+    aws_s3_bucket_ownership_controls.own,
+    aws_s3_bucket_public_access_block.public_block
+  ]
+  bucket = aws_s3_bucket.public_bucket.id
+  acl    = "public-read"
+}
+
+resource "aws_s3_bucket_policy" "public_policy" {
+  bucket = aws_s3_bucket.public_bucket.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Sid       = "PublicRead",
+      Effect    = "Allow",
+      Principal = "*",
+      Action    = ["s3:GetObject"],
+      Resource  = ["${aws_s3_bucket.public_bucket.arn}/*"]
+    }]
+  })
+}
+
+# IAM role with AdministratorAccess
+resource "aws_iam_role" "student_admin_role" {
+  name = "${var.project_prefix}-StudentAdmin"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { AWS = "*" },  # intentionally broad
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "admin_attach" {
+  role       = aws_iam_role.student_admin_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+# Security group open SSH
+data "aws_vpc" "default" { default = true }
+
+resource "aws_security_group" "open_ssh" {
+  name        = "${var.project_prefix}-open-ssh"
+  description = "Intentionally open SSH"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description = "Open SSH to the world"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# DynamoDB weak config and wide access
+resource "aws_dynamodb_table" "weak_table" {
+  name           = "${var.project_prefix}-weak-ddb"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "id"
+
+  attribute { name = "id" type = "S" }
+
+  point_in_time_recovery {
+    enabled = false
+  }
+}
+
+resource "aws_iam_policy" "wide_ddb_policy" {
+  name   = "${var.project_prefix}-DDBWideAccess"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect   = "Allow",
+      Action   = ["dynamodb:*"],
+      Resource = "*"
+    }]
+  })
+}
+
+resource "aws_iam_user" "weak_user" {
+  name = "${var.project_prefix}-weak-user"
+}
+
+resource "aws_iam_user_policy_attachment" "attach_wide" {
+  user       = aws_iam_user.weak_user.name
+  policy_arn = aws_iam_policy.wide_ddb_policy.arn
+}
+
+output "public_bucket_name"  { value = aws_s3_bucket.public_bucket.bucket }
+output "student_admin_role"  { value = aws_iam_role.student_admin_role.name }
+output "open_ssh_sg_id"      { value = aws_security_group.open_ssh.id }
+output "weak_ddb_table"      { value = aws_dynamodb_table.weak_table.name }
+output "weak_user_name"      { value = aws_iam_user.weak_user.name }
