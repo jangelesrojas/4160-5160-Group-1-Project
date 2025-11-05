@@ -4,4 +4,3 @@ __pycache__/
 .env
 .DS_Store
 *.log
-README.md
