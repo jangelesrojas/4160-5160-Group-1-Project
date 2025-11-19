@@ -23,5 +23,5 @@ docker rm -f misconfig-api || true
 docker run -d --name misconfig-api \
   -p 80:8000 \
   -e OPENAI_API_KEY='${openai_api_key}' \
-  -e USE_BOTO=0 \ #set to 1 for live demo purposes
+  -e USE_BOTO=0 \ #set to 1 for live aws demo, 0 is offline mode (not from a real aws seed account just for "aws-account-01"
   ${repo_url}:latest
