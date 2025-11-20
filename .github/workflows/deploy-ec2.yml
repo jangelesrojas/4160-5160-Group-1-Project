@@ -31,6 +31,9 @@ jobs:
           INSTANCE_ID: ${{ steps.find.outputs.id }}
           AWS_REGION:  ${{ secrets.AWS_REGION }}
           REPO:        ${{ steps.find.outputs.repo }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+          
         run: |
           CMD='aws ecr get-login-password --region '"$AWS_REGION"' | docker login --username AWS --password-stdin '"$(aws sts get-caller-identity --query Account --output text)'.dkr.ecr.'"$AWS_REGION"'.amazonaws.com && docker pull '"$(aws sts get-caller-identity --query Account --output text)".dkr.ecr."$AWS_REGION".amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest && docker rm -f misconfig-api || true && docker run -d --name misconfig-api -p 80:8000 -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} -e USE_BOTO=0 '"$(aws sts get-caller-identity --query Account --output text)".dkr.ecr."$AWS_REGION".amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest'
 
