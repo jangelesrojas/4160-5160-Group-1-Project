@@ -22,7 +22,7 @@ jobs:
         id: find
         run: |
           ID=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=misconfig-demo-ec2" "Name=instance-state-name,Values=running" \
+            --filters "Name=tag:Name,Values=4160-5160-Group-1-Project" "Name=instance-state-name,Values=running" \
             --query "Reservations[0].Instances[0].InstanceId" --output text)
           echo "id=$ID" >> $GITHUB_OUTPUT
 
