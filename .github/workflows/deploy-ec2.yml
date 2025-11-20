@@ -1,0 +1,42 @@
+name: Deploy to EC2 via SSM
+
+on:
+  workflow_run:
+    workflows: ["CI Build and Push to ECR"]
+    types: [completed]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - name: Get instance id by tag (Name=misconfig-demo-ec2)
+        id: find
+        run: |
+          ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=misconfig-demo-ec2" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" --output text)
+          echo "id=$ID" >> $GITHUB_OUTPUT
+
+      - name: Send SSM command to pull and restart container
+        env:
+          INSTANCE_ID: ${{ steps.find.outputs.id }}
+          AWS_REGION:  ${{ secrets.AWS_REGION }}
+          REPO:        ${{ steps.find.outputs.repo }}
+        run: |
+          CMD='aws ecr get-login-password --region '"$AWS_REGION"' | docker login --username AWS --password-stdin '"$(aws sts get-caller-identity --query Account --output text)'.dkr.ecr.'"$AWS_REGION"'.amazonaws.com && docker pull '"$(aws sts get-caller-identity --query Account --output text)".dkr.ecr."$AWS_REGION".amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest && docker rm -f misconfig-api || true && docker run -d --name misconfig-api -p 80:8000 -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} -e USE_BOTO=0 '"$(aws sts get-caller-identity --query Account --output text)".dkr.ecr."$AWS_REGION".amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest'
+
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands="[$CMD]" \
+            --comment "Redeploy misconfig-api" \
+            --output text
