@@ -1,6 +1,6 @@
 # ECR repo to hold the image that GitHub Actions will push
 resource "aws_ecr_repository" "repo" {
-  name                 = "${var.project_name}"
+  name = var.project_name
   image_scanning_configuration { scan_on_push = true }
 }
 
@@ -101,7 +101,7 @@ resource "aws_instance" "app" {
   iam_instance_profile        = aws_iam_instance_profile.ec2_profile.name
   user_data                   = data.template_file.ud.rendered
   associate_public_ip_address = true
-  tags = { Name = "${var.project_name}-ec2" }
+  tags                        = { Name = "${var.project_name}-ec2" }
 }
 
 # Latest Amazon Linux 2023 AMI
