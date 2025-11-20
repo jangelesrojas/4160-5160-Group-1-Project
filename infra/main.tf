@@ -9,10 +9,17 @@ resource "aws_iam_role" "ec2_role" {
   name               = "${var.project_name}-ec2-role"
   assume_role_policy = data.aws_iam_policy_document.ec2_trust.json
 }
+
 data "aws_iam_policy_document" "ec2_trust" {
   statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+
     actions = ["sts:AssumeRole"]
-    principals { type = "Service" identifiers = ["ec2.amazonaws.com"] }
   }
 }
 
@@ -66,7 +73,15 @@ resource "aws_security_group" "web" {
 }
 
 data "aws_vpc" "default" { default = true }
-data "aws_subnets" "default" { filter { name = "vpc-id" values = [data.aws_vpc.default.id] } }
+
+# Look up subnets in the default VPC
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
 
 # EC2 user data installs docker, logs in to ECR, pulls latest image, and runs container on port 80
 data "template_file" "ud" {
