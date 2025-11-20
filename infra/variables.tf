@@ -15,7 +15,7 @@ variable "instance_type" {
 
 variable "openai_api_key" {
   type    = string
-  default = "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"
+  default = ""
 }
 
 variable "aws_access_key" {
