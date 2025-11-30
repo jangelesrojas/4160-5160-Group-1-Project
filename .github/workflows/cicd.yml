@@ -53,6 +53,12 @@ jobs:
 
       - name: Debug ECR_REPOSITORY
         run: echo "ECR_REPOSITORY=[$ECR_REPOSITORY]"
+      
+      - name: Show ECR tag before build
+        run: |
+          echo "REGISTRY=[$ECR_REGISTRY]"
+          echo "REPOSITORY=[$ECR_REPOSITORY]"
+          echo "FULL TAG=${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest"
 
       - name: Build and push Docker image to ECR
         uses: docker/build-push-action@v6
