@@ -51,14 +51,17 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      
+      - name: Debug ECR_REPOSITORY
+        run: echo "ECR_REPOSITORY=[$ECR_REPOSITORY]"
+
       - name: Build and push Docker image to ECR
         uses: docker/build-push-action@v6
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
         with:
           context: ./api
           file: ./api/Dockerfile
           push: true
-          # Single, simple tag: <registry>/<repo>:<commit-sha>
-          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-
+          # ONE tag only: <registry>/<repo>:<sha>
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
