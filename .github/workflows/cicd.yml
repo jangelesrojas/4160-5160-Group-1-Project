@@ -54,23 +54,12 @@ jobs:
       - name: Debug ECR_REPOSITORY
         run: echo "ECR_REPOSITORY=[$ECR_REPOSITORY]"
 
-      # 👇 Replace the build-push-action step with a plain docker build/push
-      - name: Build, tag, and push Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
-        run: |
-          set -eux
+      - name: Build and push Docker image to ECR
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
 
-          IMAGE_TAG=latest
-
-          echo "Registry:    $ECR_REGISTRY"
-          echo "Repository:  $ECR_REPOSITORY"
-          echo "Image tag:   $IMAGE_TAG"
-
-          # Build from the api/ folder using its Dockerfile
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./api
-
-          # Push to ECR
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
