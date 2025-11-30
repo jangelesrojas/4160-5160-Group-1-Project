@@ -55,9 +55,10 @@ jobs:
       - name: Build and push Docker image to ECR
         uses: docker/build-push-action@v6
         with:
-          context: ./api               # build from api/ directory
-          file: ./api/Dockerfile       # Dockerfile location
+          context: ./api
+          file: ./api/Dockerfile
           push: true
-          tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          # Single, simple tag: <registry>/<repo>:<commit-sha>
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
